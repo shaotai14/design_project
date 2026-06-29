@@ -16,7 +16,7 @@ export function generateMaze(rows, cols, endCount = 1) {
   // 初始化迷宫，全部为墙
   const maze = Array.from({ length: rows }, () => Array(cols).fill(CELL_TYPES.WALL))
 
-  // 起点（奇数位置）
+  // 起点（左上角奇数位置）
   const start = { row: 1, col: 1 }
   maze[start.row][start.col] = CELL_TYPES.PATH
 
@@ -39,25 +39,44 @@ export function generateMaze(rows, cols, endCount = 1) {
   }
 
   // 收集所有可通行的奇数位置（排除起点）
-  const candidates = []
+  const allCandidates = []
   for (let r = 1; r < rows; r += 2) {
     for (let c = 1; c < cols; c += 2) {
       if (maze[r][c] === CELL_TYPES.PATH && !(r === start.row && c === start.col)) {
-        candidates.push({ row: r, col: c })
+        allCandidates.push({ row: r, col: c })
       }
     }
   }
 
-  // 随机选择终点
-  const ends = []
-  const count = Math.min(endCount, candidates.length)
-  for (let i = 0; i < count; i++) {
-    const idx = randomInt(0, candidates.length)
-    ends.push(candidates[idx])
-    candidates.splice(idx, 1)
+  // 将候选位置分为边缘和内部
+  const edgeCandidates = []
+  const innerCandidates = []
+  for (const pos of allCandidates) {
+    if (isEdgeCell(pos.row, pos.col, rows, cols)) {
+      edgeCandidates.push(pos)
+    } else {
+      innerCandidates.push(pos)
+    }
   }
 
-  // 如果没有终点，默认使用右下角
+  // 优先从边缘选终点，不够再从内部补
+  const ends = []
+  const count = Math.min(endCount, allCandidates.length)
+
+  // 打乱边缘候选
+  shuffle(edgeCandidates)
+
+  for (let i = 0; i < count && edgeCandidates.length > 0; i++) {
+    ends.push(edgeCandidates.pop())
+  }
+
+  // 如果边缘不够，从内部补
+  shuffle(innerCandidates)
+  while (ends.length < count && innerCandidates.length > 0) {
+    ends.push(innerCandidates.pop())
+  }
+
+  // 如果还是没有终点（极端情况），使用右下角
   if (ends.length === 0) {
     ends.push({ row: rows - 2, col: cols - 2 })
   }
@@ -69,6 +88,25 @@ export function generateMaze(rows, cols, endCount = 1) {
   })
 
   return { maze, start, ends }
+}
+
+/**
+ * 判断是否是边缘单元格（靠近迷宫边界）
+ */
+function isEdgeCell(row, col, rows, cols) {
+  // 边缘定义：最外一圈的奇数位置
+  return row <= 1 || row >= rows - 2 || col <= 1 || col >= cols - 2
+}
+
+/**
+ * Fisher-Yates 洗牌算法
+ */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1)
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
 }
 
 /**

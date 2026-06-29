@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Save, RotateCcw, Download, Upload, Pen, CircleDot, Flag, Plus, X } from 'lucide-react'
+import { Save, RotateCcw, Download, Upload, Pen, CircleDot, Flag, X } from 'lucide-react'
 import MazeGrid from './MazeGrid'
 import Button from '../common/Button'
 import { deepClone2D } from '../../utils/helpers'
@@ -10,46 +10,47 @@ import useMazeStore from '../../store/mazeStore'
 export default function MazeEditor({ onSave, onCancel, className = '' }) {
   const {
     maze, start, ends, rows, cols,
-    setCell, toggleWall, clearMaze, addEnd, removeEnd, setStart,
+    setCell, clearMaze, addEnd, removeEnd, setStart,
   } = useMazeStore()
   const [editMode, setEditMode] = useState('wall') // 'wall' | 'start' | 'end'
   const isDrawingRef = useRef(false)
   const drawValueRef = useRef(CELL_TYPES.WALL)
 
+  // 点击处理：仅处理 start 和 end 模式
   const handleCellClick = useCallback((row, col) => {
+    // 拖拽中的 click 事件忽略
     if (isDrawingRef.current) return
 
     if (editMode === 'start') {
       setStart(row, col)
     } else if (editMode === 'end') {
-      // 检查是否点击了已有终点，如果是则移除，否则添加
       const existingIndex = ends.findIndex(e => e.row === row && e.col === col)
       if (existingIndex >= 0) {
+        // 点击已有终点：如果是唯一终点则替换位置，否则移除
+        if (ends.length <= 1) {
+          // 唯一终点 → 不允许移除，只提示
+          return
+        }
         removeEnd(existingIndex)
       } else {
+        // 点击空白：添加新终点
         addEnd(row, col)
       }
     }
   }, [editMode, ends, setStart, addEnd, removeEnd])
 
+  // 按下处理：仅处理 wall 模式的拖拽开始
   const handleCellMouseDown = useCallback((row, col) => {
     if (editMode === 'wall') {
       isDrawingRef.current = true
       const currentValue = maze[row][col]
       drawValueRef.current = currentValue === CELL_TYPES.WALL ? CELL_TYPES.PATH : CELL_TYPES.WALL
       setCell(row, col, drawValueRef.current)
-    } else if (editMode === 'start') {
-      setStart(row, col)
-    } else if (editMode === 'end') {
-      const existingIndex = ends.findIndex(e => e.row === row && e.col === col)
-      if (existingIndex >= 0) {
-        removeEnd(existingIndex)
-      } else {
-        addEnd(row, col)
-      }
     }
-  }, [editMode, maze, ends, setCell, setStart, addEnd, removeEnd])
+    // start 和 end 模式不在 mouseDown 处理，由 click 处理
+  }, [editMode, maze, setCell])
 
+  // 拖拽进入：仅 wall 模式
   const handleCellMouseEnter = useCallback((row, col) => {
     if (isDrawingRef.current && editMode === 'wall') {
       setCell(row, col, drawValueRef.current)
@@ -158,7 +159,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
       <div className="text-sm text-gray-500 dark:text-gray-400">
         {editMode === 'wall' && '点击切换墙壁/通路，拖拽连续绘制'}
         {editMode === 'start' && '点击设置起点位置'}
-        {editMode === 'end' && '点击添加终点，点击已有终点可移除'}
+        {editMode === 'end' && '点击空白添加终点，点击已有终点移除（至少保留1个）'}
       </div>
 
       {/* 终点列表 */}
