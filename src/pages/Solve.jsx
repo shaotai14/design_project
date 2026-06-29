@@ -1,22 +1,25 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Layers, Code, Eye } from 'lucide-react'
+import { Layers, Code, Eye, GitBranch, ListTree } from 'lucide-react'
 import MazeGrid from '../components/maze/MazeGrid'
 import PathDisplay from '../components/maze/PathDisplay'
 import { AnimationControls, MazeSizeControl } from '../components/maze/MazeControls'
-import { LinkedStack } from '../core/stack'
 import useMazeStore from '../store/mazeStore'
 import { usePathFinding } from '../hooks/usePathFinding'
+import { ALGORITHM_TYPES } from '../utils/constants'
+import { formatSolutionPath } from '../core/mazeSolver'
 
 export default function Solve() {
-  const { maze, start, end, rows, cols, initMaze, generateNewMaze, setSize } = useMazeStore()
+  const { maze, start, ends, rows, cols, algorithm, setAlgorithm, initMaze, generateNewMaze, setSize } = useMazeStore()
   const {
     isPlaying, currentStep, speed, totalSteps,
     play, pause, reset, stepForward, stepBackward, changeSpeed,
-    steps, visitedCells, solutionPath, startSolving,
+    steps, visitedCells, solutionPath, allPathsResult,
+    startSolving, findAll,
   } = usePathFinding()
 
   const [showStack, setShowStack] = useState(false)
+  const [showAllPaths, setShowAllPaths] = useState(false)
 
   // 初始化迷宫
   useEffect(() => {
@@ -43,8 +46,8 @@ export default function Solve() {
     }
   }, [steps, currentStep])
 
-  // 当前栈状态（模拟）
-  const getStackState = useCallback(() => {
+  // 当前队列/栈状态
+  const getDataStructureState = useCallback(() => {
     if (!steps || steps.length === 0 || currentStep < 0 || currentStep >= steps.length) return []
     const stack = []
     for (let i = 0; i <= currentStep; i++) {
@@ -69,7 +72,13 @@ export default function Solve() {
     return null
   }, [steps, currentStep])
 
-  const stackState = getStackState()
+  const dataStructureState = getDataStructureState()
+  const isBFS = algorithm === ALGORITHM_TYPES.BFS
+
+  const handleFindAll = () => {
+    findAll()
+    setShowAllPaths(true)
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -84,7 +93,7 @@ export default function Solve() {
             算法演示
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            可视化展示基于栈的深度优先搜索求解迷宫的过程
+            可视化展示迷宫求解过程，支持 DFS 和 BFS 两种算法
           </p>
         </div>
 
@@ -99,6 +108,36 @@ export default function Solve() {
                 initMaze(r, c)
               }}
             />
+
+            {/* 算法选择 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">算法：</span>
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                <button
+                  onClick={() => setAlgorithm(ALGORITHM_TYPES.DFS)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    !isBFS
+                      ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 font-medium shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <ListTree className="w-4 h-4" />
+                  DFS
+                </button>
+                <button
+                  onClick={() => setAlgorithm(ALGORITHM_TYPES.BFS)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    isBFS
+                      ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 font-medium shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <GitBranch className="w-4 h-4" />
+                  BFS
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => setShowStack(!showStack)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
@@ -108,7 +147,7 @@ export default function Solve() {
               }`}
             >
               <Layers className="w-4 h-4" />
-              显示栈
+              {isBFS ? '显示队列' : '显示栈'}
             </button>
           </div>
           <AnimationControls
@@ -136,7 +175,7 @@ export default function Solve() {
             <MazeGrid
               maze={maze}
               start={start}
-              end={end}
+              ends={ends}
               visitedCells={visitedCells}
               solutionPath={solutionPath}
               currentCell={getCurrentCell()}
@@ -151,11 +190,11 @@ export default function Solve() {
                 当前步骤
               </h3>
               <p className="text-gray-700 dark:text-gray-300 min-h-[3rem]">
-                {getStepDescription() || '点击"求解"开始演示'}
+                {getStepDescription() || `点击"求解"开始${isBFS ? 'BFS' : 'DFS'}演示`}
               </p>
             </div>
 
-            {/* 栈状态 */}
+            {/* 栈/队列状态 */}
             {showStack && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
@@ -164,22 +203,22 @@ export default function Solve() {
               >
                 <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Code className="w-4 h-4" />
-                  栈状态 ({stackState.length})
+                  {isBFS ? '队列' : '栈'}状态 ({dataStructureState.length})
                 </h3>
                 <div className="max-h-60 overflow-y-auto space-y-1">
-                  {stackState.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">栈为空</p>
+                  {dataStructureState.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">{isBFS ? '队列为空' : '栈为空'}</p>
                   ) : (
-                    [...stackState].reverse().map((pos, index) => (
+                    (isBFS ? dataStructureState : [...dataStructureState].reverse()).map((pos, index) => (
                       <div
                         key={index}
                         className={`px-2 py-1 rounded text-sm font-mono ${
-                          index === 0
+                          (isBFS ? index === dataStructureState.length - 1 : index === 0)
                             ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
                             : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400'
                         }`}
                       >
-                        {index === 0 && '→ '}
+                        {(isBFS ? index === dataStructureState.length - 1 : index === 0) && '→ '}
                         ({pos.row}, {pos.col})
                       </div>
                     ))
@@ -228,10 +267,68 @@ export default function Solve() {
         {solutionPath && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              求解路径
+              {isBFS ? 'BFS 最短路径' : 'DFS 路径'}
             </h3>
             <PathDisplay path={solutionPath} />
           </div>
+        )}
+
+        {/* 所有路径按钮 */}
+        <div className="flex justify-center">
+          <button
+            onClick={handleFindAll}
+            className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+          >
+            <ListTree className="w-5 h-5" />
+            查找所有通关路径（DFS + BFS）
+          </button>
+        </div>
+
+        {/* 所有路径结果 */}
+        {showAllPaths && allPathsResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              所有通关路径
+            </h3>
+            <div className="space-y-6">
+              {allPathsResult.results.map((result, idx) => (
+                <div key={idx} className="border-b border-gray-100 dark:border-gray-700 pb-4 last:border-0 last:pb-0">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    终点 E{idx + 1}: ({result.end.row}, {result.end.col})
+                    {result.hasSolution ? (
+                      <span className="ml-2 text-emerald-600 dark:text-emerald-400">✓ 可达</span>
+                    ) : (
+                      <span className="ml-2 text-red-600 dark:text-red-400">✗ 不可达</span>
+                    )}
+                  </h4>
+                  {result.paths.map((p, pIdx) => (
+                    <div key={pIdx} className="ml-4 mb-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 text-xs rounded font-medium ${
+                          p.algorithm === 'DFS'
+                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        }`}>
+                          {p.algorithm}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {p.algorithm === 'BFS' ? '最短路径' : '深度优先路径'}
+                          （{p.path.length} 步）
+                        </span>
+                      </div>
+                      <div className="text-xs font-mono text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded p-2 overflow-x-auto">
+                        {formatSolutionPath(p.path)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </motion.div>
         )}
       </motion.div>
     </div>

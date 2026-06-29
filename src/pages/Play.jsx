@@ -1,6 +1,6 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, Footprints, Clock, RotateCcw, Shuffle } from 'lucide-react'
+import { Trophy, Footprints, RotateCcw, Shuffle, Target } from 'lucide-react'
 import MazeGrid from '../components/maze/MazeGrid'
 import Button from '../components/common/Button'
 import useMazeStore from '../store/mazeStore'
@@ -8,14 +8,16 @@ import { GAME_STATUS, DIRECTIONS } from '../utils/constants'
 
 export default function Play() {
   const {
-    maze, start, end, playerPosition, steps, gameStatus,
-    initMaze, generateNewMaze, movePlayer, startGame, resetGame,
+    maze, start, ends, playerPosition, steps, gameStatus, reachedEnds,
+    generateValidPlayMaze, movePlayer, startGame, resetGame,
   } = useMazeStore()
 
-  // 初始化迷宫
+  const [endCount, setEndCount] = useState(1)
+
+  // 初始化迷宫（确保有解）
   useEffect(() => {
     if (maze.length === 0) {
-      initMaze(11, 11)
+      generateValidPlayMaze(endCount)
     }
   }, [])
 
@@ -23,16 +25,15 @@ export default function Play() {
   const handleKeyDown = useCallback((e) => {
     if (gameStatus !== GAME_STATUS.PLAYING && gameStatus !== GAME_STATUS.IDLE) return
 
-    // 如果是 IDLE 状态，自动开始游戏
     if (gameStatus === GAME_STATUS.IDLE) {
       startGame()
     }
 
     const keyMap = {
-      ArrowUp: DIRECTIONS[3],    // 北
-      ArrowDown: DIRECTIONS[1],  // 南
-      ArrowLeft: DIRECTIONS[2],  // 西
-      ArrowRight: DIRECTIONS[0], // 东
+      ArrowUp: DIRECTIONS[3],
+      ArrowDown: DIRECTIONS[1],
+      ArrowLeft: DIRECTIONS[2],
+      ArrowRight: DIRECTIONS[0],
       w: DIRECTIONS[3],
       s: DIRECTIONS[1],
       a: DIRECTIONS[2],
@@ -52,6 +53,11 @@ export default function Play() {
   }, [handleKeyDown])
 
   const isWon = gameStatus === GAME_STATUS.WON
+  const reachedCount = reachedEnds?.size ?? 0
+
+  const handleNewMaze = () => {
+    generateValidPlayMaze(endCount)
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -70,8 +76,29 @@ export default function Play() {
           </p>
         </div>
 
+        {/* 终点数量选择 */}
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-sm text-gray-600 dark:text-gray-400">终点数量：</span>
+          {[1, 2, 3].map(count => (
+            <button
+              key={count}
+              onClick={() => {
+                setEndCount(count)
+                generateValidPlayMaze(count)
+              }}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                endCount === count
+                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              {count} 个终点
+            </button>
+          ))}
+        </div>
+
         {/* 游戏状态栏 */}
-        <div className="flex flex-wrap items-center justify-center gap-6">
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
             <Footprints className="w-5 h-5 text-primary-500" />
             <span className="text-sm text-gray-600 dark:text-gray-400">步数:</span>
@@ -84,7 +111,35 @@ export default function Play() {
               ({playerPosition.row}, {playerPosition.col})
             </span>
           </div>
+          {ends.length > 1 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+              <Target className="w-5 h-5 text-red-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">终点:</span>
+              <span className="font-bold text-gray-900 dark:text-white">
+                {reachedCount}/{ends.length}
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* 已到达终点提示 */}
+        {ends.length > 1 && reachedCount > 0 && !isWon && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {ends.map((end, index) => (
+              <div
+                key={index}
+                className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                  reachedEnds?.has(index)
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                E{index + 1} ({end.row},{end.col})
+                {reachedEnds?.has(index) && ' ✓'}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 控制按钮 */}
         <div className="flex items-center justify-center gap-3">
@@ -96,7 +151,7 @@ export default function Play() {
           <Button variant="secondary" icon={RotateCcw} onClick={resetGame}>
             重置
           </Button>
-          <Button variant="secondary" icon={Shuffle} onClick={generateNewMaze}>
+          <Button variant="secondary" icon={Shuffle} onClick={handleNewMaze}>
             新迷宫
           </Button>
         </div>
@@ -106,8 +161,9 @@ export default function Play() {
           <MazeGrid
             maze={maze}
             start={start}
-            end={end}
+            ends={ends}
             playerPosition={playerPosition}
+            reachedEnds={reachedEnds}
           />
         </div>
 
@@ -155,15 +211,13 @@ export default function Play() {
               🎉 恭喜通关！
             </h2>
             <p className="text-green-600 dark:text-green-400">
-              你用了 <strong>{steps}</strong> 步走出了迷宫！
+              你用了 <strong>{steps}</strong> 步到达了所有终点！
             </p>
             <Button
               variant="primary"
               className="mt-4"
               icon={Shuffle}
-              onClick={() => {
-                generateNewMaze()
-              }}
+              onClick={handleNewMaze}
             >
               再来一局
             </Button>
@@ -174,6 +228,7 @@ export default function Play() {
         <div className="text-center text-sm text-gray-500 dark:text-gray-400 space-y-1">
           <p>⌨️ 键盘: 方向键 或 WASD 控制移动</p>
           <p>📱 手机: 点击下方方向按钮控制移动</p>
+          {ends.length > 1 && <p>🎯 目标: 到达所有终点即可通关</p>}
         </div>
       </motion.div>
     </div>

@@ -5,9 +5,10 @@ import { isInBounds, randomInt } from '../utils/helpers'
  * 使用 Prim 算法生成迷宫
  * @param {number} rows 行数（奇数）
  * @param {number} cols 列数（奇数）
- * @returns {{maze: number[][], start: {row,col}, end: {row,col}}}
+ * @param {number} endCount 终点数量
+ * @returns {{maze: number[][], start: {row,col}, ends: {row,col}[]}}
  */
-export function generateMaze(rows, cols) {
+export function generateMaze(rows, cols, endCount = 1) {
   // 确保行列为奇数
   rows = rows % 2 === 0 ? rows + 1 : rows
   cols = cols % 2 === 0 ? cols + 1 : cols
@@ -29,8 +30,6 @@ export function generateMaze(rows, cols) {
     walls.splice(randomIndex, 1)
 
     const { row, col } = wall
-
-    // 检查墙两侧的单元格
     const neighbors = getPassageNeighbors(wall, maze, rows, cols)
 
     if (neighbors.length === 1) {
@@ -39,12 +38,37 @@ export function generateMaze(rows, cols) {
     }
   }
 
-  // 设置入口和出口
-  const end = { row: rows - 2, col: cols - 2 }
-  maze[start.row][start.col] = CELL_TYPES.PATH
-  maze[end.row][end.col] = CELL_TYPES.PATH
+  // 收集所有可通行的奇数位置（排除起点）
+  const candidates = []
+  for (let r = 1; r < rows; r += 2) {
+    for (let c = 1; c < cols; c += 2) {
+      if (maze[r][c] === CELL_TYPES.PATH && !(r === start.row && c === start.col)) {
+        candidates.push({ row: r, col: c })
+      }
+    }
+  }
 
-  return { maze, start, end }
+  // 随机选择终点
+  const ends = []
+  const count = Math.min(endCount, candidates.length)
+  for (let i = 0; i < count; i++) {
+    const idx = randomInt(0, candidates.length)
+    ends.push(candidates[idx])
+    candidates.splice(idx, 1)
+  }
+
+  // 如果没有终点，默认使用右下角
+  if (ends.length === 0) {
+    ends.push({ row: rows - 2, col: cols - 2 })
+  }
+
+  // 确保起点和终点是通路
+  maze[start.row][start.col] = CELL_TYPES.PATH
+  ends.forEach(end => {
+    maze[end.row][end.col] = CELL_TYPES.PATH
+  })
+
+  return { maze, start, ends }
 }
 
 /**

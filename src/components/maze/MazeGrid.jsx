@@ -7,8 +7,10 @@ import { CELL_TYPES } from '../../utils/constants'
 const MazeGrid = memo(({
   maze,
   start,
-  end,
+  ends,
+  end, // 兼容单终点
   playerPosition,
+  reachedEnds,
   visitedCells,
   solutionPath,
   currentCell,
@@ -26,6 +28,9 @@ const MazeGrid = memo(({
   const cols = maze[0].length
   const cellSize = customCellSize || getResponsiveCellSize(cols)
 
+  // 兼容：如果传了 end 但没传 ends，转为数组
+  const endpoints = ends || (end ? [end] : [])
+
   // 计算单元格状态
   const getCellState = useMemo(() => {
     return (row, col) => {
@@ -36,6 +41,18 @@ const MazeGrid = memo(({
       return null
     }
   }, [currentCell, solutionPath, visitedCells])
+
+  // 判断是否是终点及其索引
+  const getEndInfo = useMemo(() => {
+    return (row, col) => {
+      for (let i = 0; i < endpoints.length; i++) {
+        if (endpoints[i].row === row && endpoints[i].col === col) {
+          return { isEnd: true, index: i }
+        }
+      }
+      return { isEnd: false, index: -1 }
+    }
+  }, [endpoints])
 
   return (
     <motion.div
@@ -49,24 +66,29 @@ const MazeGrid = memo(({
       }}
     >
       {maze.map((row, rowIdx) =>
-        row.map((cell, colIdx) => (
-          <MazeCell
-            key={`${rowIdx}-${colIdx}`}
-            type={cell}
-            state={getCellState(rowIdx, colIdx)}
-            size={cellSize}
-            row={rowIdx}
-            col={colIdx}
-            isStart={start?.row === rowIdx && start?.col === colIdx}
-            isEnd={end?.row === rowIdx && end?.col === colIdx}
-            isPlayer={playerPosition?.row === rowIdx && playerPosition?.col === colIdx}
-            showCoordinates={showCoordinates}
-            onClick={() => onCellClick?.(rowIdx, colIdx)}
-            onMouseDown={() => onCellMouseDown?.(rowIdx, colIdx)}
-            onMouseEnter={() => onCellMouseEnter?.(rowIdx, colIdx)}
-            onMouseUp={() => onCellMouseUp?.()}
-          />
-        ))
+        row.map((cell, colIdx) => {
+          const endInfo = getEndInfo(rowIdx, colIdx)
+          return (
+            <MazeCell
+              key={`${rowIdx}-${colIdx}`}
+              type={cell}
+              state={getCellState(rowIdx, colIdx)}
+              size={cellSize}
+              row={rowIdx}
+              col={colIdx}
+              isStart={start?.row === rowIdx && start?.col === colIdx}
+              isEnd={endInfo.isEnd}
+              endIndex={endInfo.index}
+              endReached={endInfo.isEnd && reachedEnds?.has(endInfo.index)}
+              isPlayer={playerPosition?.row === rowIdx && playerPosition?.col === colIdx}
+              showCoordinates={showCoordinates}
+              onClick={() => onCellClick?.(rowIdx, colIdx)}
+              onMouseDown={() => onCellMouseDown?.(rowIdx, colIdx)}
+              onMouseEnter={() => onCellMouseEnter?.(rowIdx, colIdx)}
+              onMouseUp={() => onCellMouseUp?.()}
+            />
+          )
+        })
       )}
     </motion.div>
   )

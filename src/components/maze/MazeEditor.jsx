@@ -1,55 +1,54 @@
 import { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Save, Trash2, RotateCcw, Download, Upload, Pen, CircleDot, Flag } from 'lucide-react'
+import { Save, RotateCcw, Download, Upload, Pen, CircleDot, Flag, Plus, X } from 'lucide-react'
 import MazeGrid from './MazeGrid'
 import Button from '../common/Button'
-import { createEmptyMaze, deepClone2D } from '../../utils/helpers'
-import { CELL_TYPES, MAZE_CONFIG } from '../../utils/constants'
+import { deepClone2D } from '../../utils/helpers'
+import { CELL_TYPES } from '../../utils/constants'
 import useMazeStore from '../../store/mazeStore'
 
 export default function MazeEditor({ onSave, onCancel, className = '' }) {
-  const { maze, start, end, rows, cols, setCell, toggleWall, clearMaze } = useMazeStore()
+  const {
+    maze, start, ends, rows, cols,
+    setCell, toggleWall, clearMaze, addEnd, removeEnd, setStart,
+  } = useMazeStore()
   const [editMode, setEditMode] = useState('wall') // 'wall' | 'start' | 'end'
   const isDrawingRef = useRef(false)
-  const drawValueRef = useRef(CELL_TYPES.WALL) // 拖拽时绘制的值
+  const drawValueRef = useRef(CELL_TYPES.WALL)
 
-  // 点击处理（仅在鼠标抬起且没有拖拽时触发）
   const handleCellClick = useCallback((row, col) => {
-    // 拖拽结束后的 click 事件不处理
     if (isDrawingRef.current) return
 
     if (editMode === 'start') {
-      const newMaze = deepClone2D(maze)
-      if (start) newMaze[start.row][start.col] = CELL_TYPES.PATH
-      newMaze[row][col] = CELL_TYPES.PATH
-      useMazeStore.setState({ maze: newMaze, start: { row, col } })
+      setStart(row, col)
     } else if (editMode === 'end') {
-      const newMaze = deepClone2D(maze)
-      if (end) newMaze[end.row][end.col] = CELL_TYPES.PATH
-      newMaze[row][col] = CELL_TYPES.PATH
-      useMazeStore.setState({ maze: newMaze, end: { row, col } })
+      // 检查是否点击了已有终点，如果是则移除，否则添加
+      const existingIndex = ends.findIndex(e => e.row === row && e.col === col)
+      if (existingIndex >= 0) {
+        removeEnd(existingIndex)
+      } else {
+        addEnd(row, col)
+      }
     }
-  }, [editMode, maze, start, end])
+  }, [editMode, ends, setStart, addEnd, removeEnd])
 
   const handleCellMouseDown = useCallback((row, col) => {
     if (editMode === 'wall') {
       isDrawingRef.current = true
-      // 记录要绘制的值：如果当前是墙则画通路，如果当前是通路则画墙
       const currentValue = maze[row][col]
       drawValueRef.current = currentValue === CELL_TYPES.WALL ? CELL_TYPES.PATH : CELL_TYPES.WALL
       setCell(row, col, drawValueRef.current)
     } else if (editMode === 'start') {
-      const newMaze = deepClone2D(maze)
-      if (start) newMaze[start.row][start.col] = CELL_TYPES.PATH
-      newMaze[row][col] = CELL_TYPES.PATH
-      useMazeStore.setState({ maze: newMaze, start: { row, col } })
+      setStart(row, col)
     } else if (editMode === 'end') {
-      const newMaze = deepClone2D(maze)
-      if (end) newMaze[end.row][end.col] = CELL_TYPES.PATH
-      newMaze[row][col] = CELL_TYPES.PATH
-      useMazeStore.setState({ maze: newMaze, end: { row, col } })
+      const existingIndex = ends.findIndex(e => e.row === row && e.col === col)
+      if (existingIndex >= 0) {
+        removeEnd(existingIndex)
+      } else {
+        addEnd(row, col)
+      }
     }
-  }, [editMode, maze, start, end, setCell])
+  }, [editMode, maze, ends, setCell, setStart, addEnd, removeEnd])
 
   const handleCellMouseEnter = useCallback((row, col) => {
     if (isDrawingRef.current && editMode === 'wall') {
@@ -62,7 +61,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
   }, [])
 
   const handleExport = useCallback(() => {
-    const data = { maze, start, end, rows, cols }
+    const data = { maze, start, ends, rows, cols }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -70,7 +69,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
     a.download = 'maze.json'
     a.click()
     URL.revokeObjectURL(url)
-  }, [maze, start, end, rows, cols])
+  }, [maze, start, ends, rows, cols])
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input')
@@ -86,7 +85,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
           useMazeStore.setState({
             maze: data.maze,
             start: data.start,
-            end: data.end,
+            ends: data.ends || [data.end],
             rows: data.rows,
             cols: data.cols,
           })
@@ -102,7 +101,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
   const editModes = [
     { id: 'wall', label: '绘制墙壁', icon: Pen },
     { id: 'start', label: '设置起点', icon: CircleDot },
-    { id: 'end', label: '设置终点', icon: Flag },
+    { id: 'end', label: '管理终点', icon: Flag },
   ]
 
   return (
@@ -159,8 +158,32 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
       <div className="text-sm text-gray-500 dark:text-gray-400">
         {editMode === 'wall' && '点击切换墙壁/通路，拖拽连续绘制'}
         {editMode === 'start' && '点击设置起点位置'}
-        {editMode === 'end' && '点击设置终点位置'}
+        {editMode === 'end' && '点击添加终点，点击已有终点可移除'}
       </div>
+
+      {/* 终点列表 */}
+      {editMode === 'end' && (
+        <div className="flex flex-wrap gap-2">
+          {ends.map((end, index) => (
+            <div
+              key={index}
+              className="flex items-center gap-1 px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+            >
+              <span className="text-sm text-red-700 dark:text-red-300">
+                E{index + 1}: ({end.row}, {end.col})
+              </span>
+              {ends.length > 1 && (
+                <button
+                  onClick={() => removeEnd(index)}
+                  className="p-0.5 hover:bg-red-200 dark:hover:bg-red-800 rounded"
+                >
+                  <X className="w-3 h-3 text-red-500" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 迷宫网格 */}
       <div
@@ -171,7 +194,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
         <MazeGrid
           maze={maze}
           start={start}
-          end={end}
+          ends={ends}
           onCellClick={handleCellClick}
           onCellMouseDown={handleCellMouseDown}
           onCellMouseEnter={handleCellMouseEnter}

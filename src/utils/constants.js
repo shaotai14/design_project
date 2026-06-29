@@ -38,6 +38,12 @@ export const GAME_STATUS = {
   LOST: 'lost',
 }
 
+// 算法类型
+export const ALGORITHM_TYPES = {
+  DFS: 'dfs',
+  BFS: 'bfs',
+}
+
 // 路由路径
 export const ROUTES = {
   HOME: '/',

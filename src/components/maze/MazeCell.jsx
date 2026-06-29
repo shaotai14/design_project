@@ -12,6 +12,7 @@ const cellColors = {
   backtrack: 'bg-maze-backtrack',
   start: 'bg-green-500',
   end: 'bg-red-500',
+  'end-reached': 'bg-emerald-500',
 }
 
 const MazeCell = memo(({
@@ -20,6 +21,8 @@ const MazeCell = memo(({
   size = 40,
   isStart = false,
   isEnd = false,
+  endIndex = -1,
+  endReached = false,
   isPlayer = false,
   onClick,
   onMouseDown,
@@ -32,7 +35,7 @@ const MazeCell = memo(({
   const getCellClass = () => {
     if (isPlayer) return cellColors.player
     if (isStart) return cellColors.start
-    if (isEnd) return cellColors.end
+    if (isEnd) return endReached ? cellColors['end-reached'] : cellColors.end
     if (state === 'current') return cellColors.current
     if (state === 'solution') return cellColors.solution
     if (state === 'visited') return cellColors.visited
@@ -70,7 +73,9 @@ const MazeCell = memo(({
         <span className="text-white text-xs font-bold">S</span>
       )}
       {isEnd && (
-        <span className="text-white text-xs font-bold">E</span>
+        <span className="text-white text-xs font-bold">
+          {endIndex >= 0 ? `E${endIndex + 1}` : 'E'}
+        </span>
       )}
       {isPlayer && (
         <span className="text-white text-xs">🧑</span>
