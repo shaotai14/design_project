@@ -10,6 +10,7 @@ const cellColors = {
   solution: 'bg-maze-solution',
   player: 'bg-maze-player',
   backtrack: 'bg-maze-backtrack',
+  'path-traveled': 'bg-amber-200 dark:bg-amber-800/60',
   start: 'bg-green-500',
   end: 'bg-red-500',
   'end-reached': 'bg-emerald-500',
@@ -38,6 +39,7 @@ const MazeCell = memo(({
     if (isEnd) return endReached ? cellColors['end-reached'] : cellColors.end
     if (state === 'current') return cellColors.current
     if (state === 'solution') return cellColors.solution
+    if (state === 'path-traveled') return cellColors['path-traveled']
     if (state === 'visited') return cellColors.visited
     if (state === 'backtrack') return cellColors.backtrack
     if (type === CELL_TYPES.WALL) return cellColors.wall

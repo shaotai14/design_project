@@ -11,6 +11,7 @@ const MazeGrid = memo(({
   end, // 兼容单终点
   playerPosition,
   reachedEnds,
+  pathCells,
   visitedCells,
   solutionPath,
   currentCell,
@@ -37,10 +38,11 @@ const MazeGrid = memo(({
       const key = `${row},${col}`
       if (currentCell && currentCell.row === row && currentCell.col === col) return 'current'
       if (solutionPath?.some(p => p.position.row === row && p.position.col === col)) return 'solution'
+      if (pathCells?.has(key)) return 'path-traveled'
       if (visitedCells?.has(key)) return 'visited'
       return null
     }
-  }, [currentCell, solutionPath, visitedCells])
+  }, [currentCell, solutionPath, pathCells, visitedCells])
 
   // 判断是否是终点及其索引
   const getEndInfo = useMemo(() => {

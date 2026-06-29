@@ -8,7 +8,7 @@ import { GAME_STATUS, DIRECTIONS } from '../utils/constants'
 
 export default function Play() {
   const {
-    maze, start, ends, playerPosition, steps, gameStatus, reachedEnds,
+    maze, start, ends, playerPosition, steps, gameStatus, reachedEnds, pathCells,
     generateValidPlayMaze, movePlayer, startGame, resetGame,
   } = useMazeStore()
 
@@ -164,6 +164,7 @@ export default function Play() {
             ends={ends}
             playerPosition={playerPosition}
             reachedEnds={reachedEnds}
+            pathCells={pathCells}
           />
         </div>
 
@@ -228,6 +229,7 @@ export default function Play() {
         <div className="text-center text-sm text-gray-500 dark:text-gray-400 space-y-1">
           <p>⌨️ 键盘: 方向键 或 WASD 控制移动</p>
           <p>📱 手机: 点击下方方向按钮控制移动</p>
+          <p>🟨 黄色区域为你走过的路径，回退不计入步数</p>
           {ends.length > 1 && <p>🎯 目标: 到达所有终点即可通关</p>}
         </div>
       </motion.div>

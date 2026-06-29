@@ -26,6 +26,7 @@ const useMazeStore = create((set, get) => ({
   playerPosition: { row: 1, col: 1 },
   reachedEnds: new Set(),
   moveHistory: [],
+  pathCells: new Set(), // 玩家走过的路径（用于染色）
   steps: 0,
   gameStatus: GAME_STATUS.IDLE,
 
@@ -56,6 +57,7 @@ const useMazeStore = create((set, get) => ({
       explorationSteps: [],
       currentStepIndex: -1,
       moveHistory: [],
+      pathCells: new Set(),
       steps: 0,
       gameStatus: GAME_STATUS.IDLE,
     })
@@ -77,6 +79,7 @@ const useMazeStore = create((set, get) => ({
       explorationSteps: [],
       currentStepIndex: -1,
       moveHistory: [],
+      pathCells: new Set(),
       steps: 0,
       gameStatus: GAME_STATUS.IDLE,
     })
@@ -102,6 +105,7 @@ const useMazeStore = create((set, get) => ({
           explorationSteps: [],
           currentStepIndex: -1,
           moveHistory: [],
+          pathCells: new Set(),
           steps: 0,
           gameStatus: GAME_STATUS.IDLE,
         })
@@ -123,6 +127,7 @@ const useMazeStore = create((set, get) => ({
       explorationSteps: [],
       currentStepIndex: -1,
       moveHistory: [],
+      pathCells: new Set(),
       steps: 0,
       gameStatus: GAME_STATUS.IDLE,
     })
@@ -165,7 +170,7 @@ const useMazeStore = create((set, get) => ({
 
   // 闯关模式 - 移动玩家
   movePlayer: (direction) => {
-    const { maze, playerPosition, ends, gameStatus, moveHistory, steps, reachedEnds } = get()
+    const { maze, playerPosition, ends, gameStatus, moveHistory, pathCells, steps, reachedEnds } = get()
     if (gameStatus !== GAME_STATUS.PLAYING && gameStatus !== GAME_STATUS.IDLE) return false
 
     const { dr, dc } = direction
@@ -178,26 +183,57 @@ const useMazeStore = create((set, get) => ({
     if (maze[newRow][newCol] === 1) return false
 
     const newPosition = { row: newRow, col: newCol }
+
+    // 检测回退：如果目标位置是 moveHistory 中的上一个位置，则为回退
+    const isBacktrack = moveHistory.length > 0 &&
+      moveHistory[moveHistory.length - 1].row === newRow &&
+      moveHistory[moveHistory.length - 1].col === newCol
+
     const newReached = new Set(reachedEnds)
+    const newPathCells = new Set(pathCells)
 
-    // 检查是否到达某个终点
-    ends.forEach((end, index) => {
-      if (newRow === end.row && newCol === end.col) {
-        newReached.add(index)
-      }
-    })
+    if (isBacktrack) {
+      // 回退：从路径中移除当前位置，不计入步数
+      const currentKey = `${playerPosition.row},${playerPosition.col}`
+      newPathCells.delete(currentKey)
+      const newHistory = moveHistory.slice(0, -1)
 
-    // 检查是否到达所有终点
-    const allReached = newReached.size === ends.length
-    const newStatus = allReached ? GAME_STATUS.WON : GAME_STATUS.PLAYING
+      // 检查是否到达终点
+      ends.forEach((end, index) => {
+        if (newRow === end.row && newCol === end.col) {
+          newReached.add(index)
+        }
+      })
 
-    set({
-      playerPosition: newPosition,
-      reachedEnds: newReached,
-      moveHistory: [...moveHistory, { ...playerPosition }],
-      steps: steps + 1,
-      gameStatus: newStatus,
-    })
+      set({
+        playerPosition: newPosition,
+        reachedEnds: newReached,
+        moveHistory: newHistory,
+        pathCells: newPathCells,
+        // 步数不增加（回退不计步）
+        gameStatus: newReached.size === ends.length ? GAME_STATUS.WON : GAME_STATUS.PLAYING,
+      })
+    } else {
+      // 正常前进：将当前位置加入路径
+      const currentKey = `${playerPosition.row},${playerPosition.col}`
+      newPathCells.add(currentKey)
+
+      // 检查是否到达终点
+      ends.forEach((end, index) => {
+        if (newRow === end.row && newCol === end.col) {
+          newReached.add(index)
+        }
+      })
+
+      set({
+        playerPosition: newPosition,
+        reachedEnds: newReached,
+        moveHistory: [...moveHistory, { ...playerPosition }],
+        pathCells: newPathCells,
+        steps: steps + 1,
+        gameStatus: newReached.size === ends.length ? GAME_STATUS.WON : GAME_STATUS.PLAYING,
+      })
+    }
 
     return true
   },
@@ -209,6 +245,7 @@ const useMazeStore = create((set, get) => ({
       playerPosition: { ...start },
       reachedEnds: new Set(),
       moveHistory: [],
+      pathCells: new Set(),
       steps: 0,
       gameStatus: GAME_STATUS.PLAYING,
     })
@@ -221,6 +258,7 @@ const useMazeStore = create((set, get) => ({
       playerPosition: { ...start },
       reachedEnds: new Set(),
       moveHistory: [],
+      pathCells: new Set(),
       steps: 0,
       gameStatus: GAME_STATUS.IDLE,
     })
