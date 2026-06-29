@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Waypoints, Menu, X, Sun, Moon } from 'lucide-react'
+import { Waypoints, Menu, X, Sun, Moon, Github } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { ROUTES } from '../../utils/constants'
 import useThemeStore from '../../hooks/useTheme'
@@ -64,8 +64,21 @@ export default function Header() {
             })}
           </nav>
 
-          {/* Right side: theme toggle + mobile menu */}
-          <div className="flex items-center gap-2">
+          {/* Right side: github + theme toggle + mobile menu */}
+          <div className="flex items-center gap-1">
+            {/* GitHub */}
+            <motion.a
+              href="https://github.com/shaotai14/design_project"
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+              aria-label="GitHub"
+            >
+              <Github className="w-5 h-5" />
+            </motion.a>
+
             {/* Theme Toggle */}
             <motion.button
               whileHover={{ scale: 1.05 }}
