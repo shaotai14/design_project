@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Play, Zap, PenTool, Info, ArrowRight, Maze, Layers, Sparkles } from 'lucide-react'
+import { Play, Zap, PenTool, Info, ArrowRight, Waypoints, Layers, Sparkles } from 'lucide-react'
 import Card from '../components/common/Card'
 import { ROUTES } from '../utils/constants'
 
@@ -65,7 +65,7 @@ export default function Home() {
             >
               <div className="relative">
                 <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/30">
-                  <Maze className="w-12 h-12 text-white" />
+                  <Waypoints className="w-12 h-12 text-white" />
                 </div>
                 <motion.div
                   animate={{ rotate: 360 }}

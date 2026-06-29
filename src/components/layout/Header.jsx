@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Maze, Menu, X } from 'lucide-react'
+import { Waypoints, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { ROUTES } from '../../utils/constants'
 
@@ -26,7 +26,7 @@ export default function Header() {
               whileHover={{ rotate: 90 }}
               transition={{ duration: 0.3 }}
             >
-              <Maze className="w-8 h-8 text-primary-500" />
+              <Waypoints className="w-8 h-8 text-primary-500" />
             </motion.div>
             <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
               迷宫求解器
