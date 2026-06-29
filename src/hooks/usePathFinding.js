@@ -15,14 +15,16 @@ export function usePathFinding() {
   const [solutionPath, setSolutionPath] = useState(null)
 
   const handleStepChange = useCallback((stepIndex) => {
-    if (!steps || steps.length === 0) return
+    if (!steps || steps.length === 0 || stepIndex < 0) return
 
     const visited = new Set()
     const path = []
+    const maxIndex = Math.min(stepIndex, steps.length - 1)
 
     // 重建到当前步骤的状态
-    for (let i = 0; i <= stepIndex; i++) {
+    for (let i = 0; i <= maxIndex; i++) {
       const step = steps[i]
+      if (!step) continue
       if (step.type === 'visit') {
         visited.add(`${step.position.row},${step.position.col}`)
       } else if (step.type === 'backtrack') {

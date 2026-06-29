@@ -45,10 +45,11 @@ export default function Solve() {
 
   // 当前栈状态（模拟）
   const getStackState = useCallback(() => {
-    if (!steps || currentStep < 0) return []
+    if (!steps || steps.length === 0 || currentStep < 0 || currentStep >= steps.length) return []
     const stack = []
     for (let i = 0; i <= currentStep; i++) {
       const step = steps[i]
+      if (!step) continue
       if (step.type === 'visit') {
         stack.push(step.position)
       } else if (step.type === 'backtrack') {
