@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Save, Trash2, RotateCcw, Download, Upload, Pen, CircleDot, Flag } from 'lucide-react'
 import MazeGrid from './MazeGrid'
@@ -9,56 +9,60 @@ import useMazeStore from '../../store/mazeStore'
 
 export default function MazeEditor({ onSave, onCancel, className = '' }) {
   const { maze, start, end, rows, cols, setCell, toggleWall, clearMaze } = useMazeStore()
-  const [isDrawing, setIsDrawing] = useState(false)
   const [editMode, setEditMode] = useState('wall') // 'wall' | 'start' | 'end'
+  const isDrawingRef = useRef(false)
+  const drawValueRef = useRef(CELL_TYPES.WALL) // 拖拽时绘制的值
 
+  // 点击处理（仅在鼠标抬起且没有拖拽时触发）
   const handleCellClick = useCallback((row, col) => {
-    if (editMode === 'wall') {
-      toggleWall(row, col)
-    } else if (editMode === 'start') {
-      // 设置起点
+    // 拖拽结束后的 click 事件不处理
+    if (isDrawingRef.current) return
+
+    if (editMode === 'start') {
       const newMaze = deepClone2D(maze)
-      // 清除旧起点
       if (start) newMaze[start.row][start.col] = CELL_TYPES.PATH
-      // 设置新起点
       newMaze[row][col] = CELL_TYPES.PATH
       useMazeStore.setState({ maze: newMaze, start: { row, col } })
     } else if (editMode === 'end') {
-      // 设置终点
       const newMaze = deepClone2D(maze)
-      // 清除旧终点
       if (end) newMaze[end.row][end.col] = CELL_TYPES.PATH
-      // 设置新终点
       newMaze[row][col] = CELL_TYPES.PATH
       useMazeStore.setState({ maze: newMaze, end: { row, col } })
     }
-  }, [editMode, maze, start, end, toggleWall])
+  }, [editMode, maze, start, end])
 
   const handleCellMouseDown = useCallback((row, col) => {
-    setIsDrawing(true)
     if (editMode === 'wall') {
-      toggleWall(row, col)
+      isDrawingRef.current = true
+      // 记录要绘制的值：如果当前是墙则画通路，如果当前是通路则画墙
+      const currentValue = maze[row][col]
+      drawValueRef.current = currentValue === CELL_TYPES.WALL ? CELL_TYPES.PATH : CELL_TYPES.WALL
+      setCell(row, col, drawValueRef.current)
+    } else if (editMode === 'start') {
+      const newMaze = deepClone2D(maze)
+      if (start) newMaze[start.row][start.col] = CELL_TYPES.PATH
+      newMaze[row][col] = CELL_TYPES.PATH
+      useMazeStore.setState({ maze: newMaze, start: { row, col } })
+    } else if (editMode === 'end') {
+      const newMaze = deepClone2D(maze)
+      if (end) newMaze[end.row][end.col] = CELL_TYPES.PATH
+      newMaze[row][col] = CELL_TYPES.PATH
+      useMazeStore.setState({ maze: newMaze, end: { row, col } })
     }
-  }, [editMode, toggleWall])
+  }, [editMode, maze, start, end, setCell])
 
   const handleCellMouseEnter = useCallback((row, col) => {
-    if (isDrawing && editMode === 'wall') {
-      setCell(row, col, CELL_TYPES.WALL)
+    if (isDrawingRef.current && editMode === 'wall') {
+      setCell(row, col, drawValueRef.current)
     }
-  }, [isDrawing, editMode, setCell])
+  }, [editMode, setCell])
 
   const handleCellMouseUp = useCallback(() => {
-    setIsDrawing(false)
+    isDrawingRef.current = false
   }, [])
 
   const handleExport = useCallback(() => {
-    const data = {
-      maze,
-      start,
-      end,
-      rows,
-      cols,
-    }
+    const data = { maze, start, end, rows, cols }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -153,7 +157,7 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
 
       {/* 编辑提示 */}
       <div className="text-sm text-gray-500 dark:text-gray-400">
-        {editMode === 'wall' && '点击或拖拽切换墙壁/通路'}
+        {editMode === 'wall' && '点击切换墙壁/通路，拖拽连续绘制'}
         {editMode === 'start' && '点击设置起点位置'}
         {editMode === 'end' && '点击设置终点位置'}
       </div>
@@ -161,7 +165,8 @@ export default function MazeEditor({ onSave, onCancel, className = '' }) {
       {/* 迷宫网格 */}
       <div
         onMouseLeave={handleCellMouseUp}
-        className="inline-block"
+        onMouseUp={handleCellMouseUp}
+        className="inline-block select-none"
       >
         <MazeGrid
           maze={maze}
