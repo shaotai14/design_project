@@ -24,7 +24,7 @@ export default {
         maze: {
           wall: '#1f2937',
           path: '#ffffff',
-          visited: '#dbeafe',
+          visited: '#bfdbfe',
           current: '#3b82f6',
           solution: '#10b981',
           player: '#f59e0b',

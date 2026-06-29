@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Play, Zap, PenTool, Info, ArrowRight, Waypoints, Layers, Sparkles } from 'lucide-react'
 import Card from '../components/common/Card'
 import { ROUTES } from '../utils/constants'
@@ -51,6 +51,8 @@ const itemVariants = {
 }
 
 export default function Home() {
+  const navigate = useNavigate()
+
   return (
     <div className="min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
@@ -158,23 +160,24 @@ export default function Home() {
             const Icon = feature.icon
             return (
               <motion.div key={feature.title} variants={itemVariants}>
-                <Link to={feature.path}>
-                  <Card className="h-full group hover:shadow-xl transition-shadow">
-                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
-                      <Icon className="w-7 h-7 text-white" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                      {feature.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                      {feature.description}
-                    </p>
-                    <div className="mt-4 flex items-center gap-1 text-primary-600 dark:text-primary-400 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                      了解更多
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </Card>
-                </Link>
+                <Card
+                  className="h-full group hover:shadow-xl transition-shadow"
+                  onClick={() => navigate(feature.path)}
+                >
+                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-7 h-7 text-white" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    {feature.description}
+                  </p>
+                  <div className="mt-4 flex items-center gap-1 text-primary-600 dark:text-primary-400 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    了解更多
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </Card>
               </motion.div>
             )
           })}
