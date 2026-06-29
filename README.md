@@ -1,606 +1,167 @@
 # 迷宫求解算法可视化网站
 
-## 项目概述
+## 一、问题描述
 
-基于栈的迷宫求解算法可视化网站，使用 React + Vite 构建，支持用户自定义迷宫、自动生成迷宫、手动闯关和算法演示。
+以一个 `m×n` 的长方阵表示迷宫，`0` 和 `1` 分别表示迷宫中的通路和障碍。设计一个程序，对任意设定的迷宫，求出一条从入口到出口的通路，或得出没有通路的结论。
 
-## 技术栈
+本项目将课程设计要求封装为可视化 Web 应用，部署在 Ubuntu 服务器上。
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| React | 18.x | 前端框架 |
-| Vite | 5.x | 构建工具 |
-| JavaScript | ES2022+ | 编程语言 |
-| Tailwind CSS | 3.x | 样式框架 |
-| Framer Motion | 11.x | 动画效果 |
-| Zustand | 4.x | 状态管理 |
-| React Router | 6.x | 路由管理 |
-| Lucide React | latest | 图标库 |
-| shadcn/ui | latest | UI 组件库 |
+## 二、基本要求与实现
 
-## 项目结构
+### 1. 链表栈
 
-```
-maze-solver/
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── assets/                    # 静态资源
-│   ├── components/
-│   │   ├── common/                # 通用组件
-│   │   │   ├── Button.jsx
-│   │   │   ├── Card.jsx
-│   │   │   ├── Modal.jsx
-│   │   │   └── Tooltip.jsx
-│   │   ├── maze/                  # 迷宫相关组件
-│   │   │   ├── MazeGrid.jsx       # 迷宫网格
-│   │   │   ├── MazeCell.jsx       # 单元格
-│   │   │   ├── MazeControls.jsx   # 控制面板
-│   │   │   ├── MazeEditor.jsx     # 迷宫编辑器
-│   │   │   ├── PathDisplay.jsx    # 路径展示
-│   │   │   └── AnimationPlayer.jsx# 动画播放器
-│   │   └── layout/                # 布局组件
-│   │       ├── Header.jsx
-│   │       ├── Footer.jsx
-│   │       └── Sidebar.jsx
-│   ├── core/                      # 核心算法
-│   │   ├── stack.js               # 链表栈实现
-│   │   ├── mazeSolver.js          # 迷宫求解算法
-│   │   └── mazeGenerator.js       # 迷宫生成算法
-│   ├── hooks/                     # 自定义 Hooks
-│   │   ├── useMaze.js
-│   │   ├── useAnimation.js
-│   │   └── usePathFinding.js
-│   ├── pages/                     # 页面组件
-│   │   ├── Home.jsx               # 首页
-│   │   ├── Play.jsx               # 闯关模式
-│   │   ├── Solve.jsx              # 算法演示
-│   │   ├── Editor.jsx             # 迷宫编辑
-│   │   └── About.jsx              # 关于页面
-│   ├── store/                     # 状态管理
-│   │   └── mazeStore.js
-│   ├── styles/                    # 样式文件
-│   │   └── global.css
-│   ├── utils/                     # 工具函数
-│   │   ├── helpers.js
-│   │   └── constants.js
-│   ├── App.jsx
-│   └── main.jsx
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-└── postcss.config.js
-```
-
-## 核心算法设计
-
-### 1. 链表栈实现
+实现了以链表作存储结构的栈类型，编写了求解迷宫的非递归程序。
 
 ```javascript
 // core/stack.js
-
 class LinkedStack {
-  constructor() {
-    this.top = null;
-    this.size = 0;
-  }
-
-  push(item) {
-    const node = { data: item, next: this.top };
-    this.top = node;
-    this.size++;
-  }
-
-  pop() {
-    if (this.isEmpty()) return null;
-    const data = this.top.data;
-    this.top = this.top.next;
-    this.size--;
-    return data;
-  }
-
-  peek() {
-    return this.isEmpty() ? null : this.top.data;
-  }
-
-  isEmpty() {
-    return this.top === null;
-  }
-
-  getSize() {
-    return this.size;
-  }
-
-  toArray() {
-    const result = [];
-    let current = this.top;
-    while (current) {
-      result.push(current.data);
-      current = current.next;
-    }
-    return result;
-  }
+  push(item)    // 入栈
+  pop()         // 出栈
+  peek()        // 查看栈顶
+  isEmpty()     // 判空
+  getSize()     // 栈大小
+  toArray()     // 转为数组（栈顶→栈底）
 }
 ```
 
-### 2. 迷宫求解算法
+### 2. 非递归求解（DFS）
+
+采用基于栈的深度优先搜索，从入口出发，顺着东→南→西→北四个方向探索：
+
+- 若能走通，则将当前位置压入栈，继续前进
+- 若四个方向都不可行，则从栈中弹出（回溯），换方向继续探索
+- 直到到达出口，或栈为空（无通路）
+
+#### 核心代码
 
 ```javascript
-// core/mazeSolver.js
-
-// 方向定义: 东(0,1) 南(1,0) 西(0,-1) 北(-1,0)
-const DIRECTIONS = [
-  { dr: 0, dc: 1, name: '东', code: 1 },
-  { dr: 1, dc: 0, name: '南', code: 2 },
-  { dr: 0, dc: -1, name: '西', code: 3 },
-  { dr: -1, dc: 0, name: '北', code: 4 },
-];
-
 function solveMaze(maze, start, end) {
-  const rows = maze.length;
-  const cols = maze[0].length;
-  const stack = new LinkedStack();
-  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const rows = maze.length
+  const cols = maze[0].length
+  const stack = new LinkedStack()                           // ① 创建链表栈
+  const visited = Array.from({ length: rows }, () =>        // ② 二维数组记录访问状态
+    Array(cols).fill(false)
+  )
+  const steps = []                                          // ③ 记录每一步（用于动画回放）
 
-  // 标记起点为已访问
-  visited[start.row][start.col] = true;
-  stack.push({ position: start, direction: 0 });
+  visited[start.row][start.col] = true                      // ④ 标记起点已访问
+  stack.push({ position: start, direction: 0 })             // ⑤ 起点压栈，direction=0 表示从东方向开始尝试
+  steps.push({ type: 'visit', position: start })
 
-  while (!stack.isEmpty()) {
-    const current = stack.peek();
-    const { row, col } = current.position;
+  while (!stack.isEmpty()) {                                // ⑥ 栈不为空就继续探索
+    const current = stack.peek()                            // ⑦ 查看栈顶（不弹出）
+    const { row, col } = current.position
 
-    // 到达终点
-    if (row === end.row && col === end.col) {
-      return stack.toArray().reverse();
+    if (row === end.row && col === end.col) {               // ⑧ 到达终点
+      const path = stack.toArray().reverse()                // ⑨ 栈转数组并反转得到从起点到终点的路径
+      steps.push({ type: 'found', path })
+      return { path, steps }
     }
 
-    // 尝试四个方向
-    let found = false;
-    for (let i = current.direction; i < 4; i++) {
-      const { dr, dc } = DIRECTIONS[i];
-      const newRow = row + dr;
-      const newCol = col + dc;
+    let found = false
+    for (let i = current.direction; i < 4; i++) {           // ⑩ 从上次探索到的方向继续尝试
+      const { dr, dc } = DIRECTIONS[i]                      //    DIRECTIONS = [东(0,1), 南(1,0), 西(0,-1), 北(-1,0)]
+      const newRow = row + dr
+      const newCol = col + dc
 
       if (
-        newRow >= 0 && newRow < rows &&
-        newCol >= 0 && newCol < cols &&
-        maze[newRow][newCol] === 0 &&
-        !visited[newRow][newCol]
+        isInBounds(newRow, newCol, rows, cols) &&           // ⑪ 边界检查
+        maze[newRow][newCol] === CELL_TYPES.PATH &&          // ⑫ 是通路（非墙壁）
+        !visited[newRow][newCol]                             // ⑬ 未访问过
       ) {
-        visited[newRow][newCol] = true;
-        current.direction = i + 1; // 更新当前节点的探索方向
-        stack.push({
+        visited[newRow][newCol] = true                      // ⑭ 标记已访问
+        current.direction = i + 1                           // ⑮ 记录下次从哪个方向继续（下次回溯到这里时跳过已试方向）
+        stack.push({                                        // ⑯ 新位置压栈
           position: { row: newRow, col: newCol },
-          direction: 0,
-        });
-        found = true;
-        break;
+          direction: 0,                                     //    新位置从东方向重新开始
+        })
+        steps.push({ type: 'visit', position: { row: newRow, col: newCol } })
+        found = true
+        break                                               // ⑰ 找到一个方向就深入，跳出 for 循环
       }
     }
 
-    // 死胡同，回溯
-    if (!found) {
-      stack.pop();
+    if (!found) {                                           // ⑱ 四个方向都走不通
+      stack.pop()                                           // ⑲ 弹出栈顶（回溯到上一个分叉点）
+      steps.push({ type: 'backtrack', position: { row, col } })
     }
   }
 
-  return null; // 无解
+  steps.push({ type: 'no-solution' })                       // ⑳ 栈空了，无解
+  return { path: null, steps }
 }
 ```
 
-### 3. 迷宫生成算法（Prim 算法）
+#### 逻辑详解
 
-```javascript
-// core/mazeGenerator.js
+**数据结构设计：**
 
-function generateMaze(rows, cols) {
-  // 初始化迷宫，全部为墙
-  const maze = Array.from({ length: rows }, () => Array(cols).fill(1));
+每个栈元素存储 `{ position, direction }` 两个字段：
+- `position`：当前坐标 `{ row, col }`
+- `direction`：下次从哪个方向继续尝试（0~3 对应东→南→西→北）
 
-  // 起点
-  const start = { row: 1, col: 1 };
-  maze[start.row][start.col] = 0;
+这个 `direction` 字段是关键——它实现了**方向记忆**。当从某个位置回溯回来时，不需要从头尝试四个方向，而是从上次中断的方向继续，避免重复探索。
 
-  // 墙列表
-  const walls = [];
-  addWalls(walls, start, maze, rows, cols);
-
-  while (walls.length > 0) {
-    const randomIndex = Math.floor(Math.random() * walls.length);
-    const wall = walls[randomIndex];
-    walls.splice(randomIndex, 1);
-
-    const { row, col } = wall;
-
-    // 检查墙两侧的单元格
-    const neighbors = getPassageNeighbors(wall, maze, rows, cols);
-
-    if (neighbors.length === 1) {
-      maze[row][col] = 0;
-      addWalls(walls, wall, maze, rows, cols);
-    }
-  }
-
-  // 设置入口和出口
-  maze[1][1] = 0;
-  maze[rows - 2][cols - 2] = 0;
-
-  return maze;
-}
-```
-
-## 功能模块
-
-### 模块一：迷宫编辑器
-
-**功能描述**：用户可以手动绘制迷宫
-
-- 点击切换墙壁/通路
-- 拖拽绘制连续墙壁
-- 设置起点/终点
-- 清空/重置迷宫
-- 导入/导出迷宫数据
-
-**组件设计**：
-
-```javascript
-const MazeEditor = ({ initialMaze, onSave, onCancel }) => {
-  const [maze, setMaze] = useState(initialMaze || createEmptyMaze(11, 11));
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawMode, setDrawMode] = useState('wall');
-
-  // 处理单元格点击
-  const handleCellClick = (row: number, col: number) => {
-    const newMaze = [...maze];
-    newMaze[row][col] = newMaze[row][col] === 0 ? 1 : 0;
-    setMaze(newMaze);
-  };
-
-  // 处理拖拽绘制
-  const handleCellDrag = (row: number, col: number) => {
-    if (!isDrawing) return;
-    const newMaze = [...maze];
-    newMaze[row][col] = drawMode === 'wall' ? 1 : 0;
-    setMaze(newMaze);
-  };
-
-  return (
-    <div className="maze-editor">
-      <MazeGrid maze={maze} onCellClick={handleCellClick} onCellDrag={handleCellDrag} />
-      <div className="controls">
-        <Button onClick={() => onSave(maze)}>保存</Button>
-        <Button onClick={onCancel}>取消</Button>
-      </div>
-    </div>
-  );
-};
-```
-
-### 模块二：迷宫生成器
-
-**功能描述**：一键生成随机迷宫
-
-- 支持多种生成算法
-- 可调节迷宫大小
-- 动画展示生成过程
-- 保证有解
-
-**生成算法**：
-
-| 算法 | 特点 | 复杂度 |
-|------|------|--------|
-| Prim | 随机性强，路径复杂 | O(n) |
-| Recursive Backtrack | 路径长，死胡同多 | O(n) |
-| Kruskal | 均匀分布 | O(n log n) |
-
-### 模块三：闯关模式
-
-**功能描述**：用户手动控制角色走出迷宫
-
-- 键盘/鼠标控制方向
-- 实时显示位置
-- 记录步数和时间
-- 碰墙提示
-- 成功/失败动画
-
-**状态管理**：
-
-```javascript
-const useGameStore = create((set) => ({
-  playerPosition: { row: 1, col: 1 },
-  maze: [],
-  steps: 0,
-  timeElapsed: 0,
-  status: 'playing',
-  moveHistory: [],
-
-  move: (direction) => {
-    // 移动逻辑
-  },
-
-  reset: () => {
-    // 重置游戏
-  },
-}));
-```
-
-### 模块四：算法演示
-
-**功能描述**：可视化展示栈求解迷宫的过程
-
-- 逐步动画展示
-- 显示栈的状态变化
-- 高亮当前探索路径
-- 回溯动画
-- 速度控制
-
-**动画控制**：
-
-```javascript
-const useAnimation = () => {
-  const [state, setState] = useState({
-    isPlaying: false,
-    speed: 1, // 1x, 2x, 4x
-    currentStep: 0,
-    totalSteps: 0,
-    explorationPath: [],
-    finalPath: [],
-  });
-
-  const play = () => { /* 播放 */ };
-  const pause = () => { /* 暂停 */ };
-  const reset = () => { /* 重置 */ };
-  const setSpeed = (speed) => { /* 设置速度 */ };
-  const stepForward = () => { /* 前进一步 */ };
-  const stepBackward = () => { /* 后退一步 */ };
-
-  return { state, play, pause, reset, setSpeed, stepForward, stepBackward };
-};
-```
-
-### 模块五：路径展示
-
-**功能描述**：以三元组形式展示求解路径
+**探索流程（以 3×3 小迷宫为例）：**
 
 ```
-路径输出格式：
-(1,1,1) -> (1,2,2) -> (3,2,3) -> (3,1,2) -> ...
-
-其中：
-- (i,j) 表示坐标
-- d 表示走向下一格的方向
-  1: 东  2: 南  3: 西  4: 北
+迷宫：         方向约定：
+  0 1 2          北(-1,0)
+0 S 0 0          ↑
+1 1 0 1     西 ←   → 东(0,1)
+2 0 0 E          ↓
+                 南(1,0)
+S=起点(0,0)  E=终点(2,2)
 ```
 
-## UI/UX 设计
-
-### 设计风格
-
-- **主题**：简洁现代，深色/浅色双主题
-- **配色**：主色调为蓝色系，辅以灰色和强调色
-- **字体**：Inter（英文）+ 思源黑体（中文）
-- **图标**：Lucide Icons
-
-### 页面布局
-
 ```
-┌─────────────────────────────────────────────────┐
-│                    Header                        │
-├─────────────────────────────────────────────────┤
-│         │                                       │
-│  Side   │           Main Content                │
-│  Bar    │                                       │
-│         │                                       │
-│         │                                       │
-│         │                                       │
-├─────────────────────────────────────────────────┤
-│                    Footer                        │
-└─────────────────────────────────────────────────┘
+步骤1: 栈=[(0,0,dir=0)]，从(0,0)向东→(0,1)是通路，压栈
+步骤2: 栈=[(0,0,dir=1), (0,1,dir=0)]，从(0,1)向东→(0,2)是通路，压栈
+步骤3: 栈=[(0,0,dir=1), (0,1,dir=1), (0,2,dir=0)]，从(0,2)向东出界、向南→(1,2)是墙、向西→(0,1)已访问、向北出界
+        → 四方向都不可行，回溯：弹出(0,2)
+步骤4: 栈=[(0,0,dir=1), (0,1,dir=1)]，从(0,1)上次停在dir=1(南)，向南→(1,1)是通路，压栈
+步骤5: 栈=[(0,0,dir=1), (0,1,dir=2), (1,1,dir=0)]，从(1,1)向东→(1,2)是墙、向南→(2,1)是通路，压栈
+步骤6: 栈=[(0,0,dir=1), (0,1,dir=2), (1,1,dir=2), (2,1,dir=0)]，从(2,1)向东→(2,2)=终点，找到！
 ```
 
-### 迷宫网格样式
+**回溯机制：**
 
-```css
-.maze-grid {
-  display: grid;
-  gap: 2px;
-  background-color: #e5e7eb;
-  padding: 2px;
-  border-radius: 8px;
-}
+`current.direction = i + 1` 这行代码是回溯的核心。假设在位置 A 尝试了方向 0（东）成功，将 A 的 direction 设为 1。当从东边的死胡同回溯到 A 时，for 循环从 `i = current.direction = 1` 开始，即从南方向继续，不会重复尝试已经走过的东方向。
 
-.maze-cell {
-  width: 40px;
-  height: 40px;
-  transition: all 0.2s ease;
-}
+**路径还原：**
 
-.maze-cell.wall {
-  background-color: #1f2937;
-}
+`stack.toArray().reverse()` 将栈中元素从栈顶到栈底转为数组后反转，得到从起点到终点的正序路径。每个元素包含 position 和 direction，正好满足三元组 `(i, j, d)` 的输出要求。
 
-.maze-cell.path {
-  background-color: #ffffff;
-}
+### 3. 三元组输出
 
-.maze-cell.visited {
-  background-color: #dbeafe;
-}
+求得的通路以三元组 `(i, j, d)` 的形式输出：
 
-.maze-cell.current {
-  background-color: #3b82f6;
-  transform: scale(1.1);
-}
+- `(i, j)` 指示迷宫中的一个坐标
+- `d` 表示走到下一坐标的方向：1=东、2=南、3=西、4=北
 
-.maze-cell.solution {
-  background-color: #10b981;
-}
+示例输出：
 
-.maze-cell.player {
-  background-color: #f59e0b;
-  animation: pulse 1s infinite;
-}
+```
+(1,1,东) → (1,2,南) → (3,2,西) → (3,1,南) → ...
 ```
 
-### 动画效果
+### 4. 方阵输出迷宫及其通路
 
-```typescript
-// 使用 Framer Motion 实现
+以方阵形式可视化迷宫，不同状态以不同颜色区分：
 
-// 1. 迷宫生成动画
-const generateAnimation = {
-  initial: { opacity: 0, scale: 0.8 },
-  animate: { opacity: 1, scale: 1 },
-  transition: { duration: 0.3 }
-};
+| 颜色 | 含义 |
+|------|------|
+| 深灰 | 墙壁（1） |
+| 白色 | 通路（0） |
+| 蓝色 | 已访问 |
+| 绿色 | 求解路径 |
+| 琥珀色 | 闯关走过的路径 |
+| 红色 | 终点 |
+| 绿色 | 起点 |
 
-// 2. 路径探索动画
-const explorationAnimation = {
-  initial: { backgroundColor: '#ffffff' },
-  animate: { backgroundColor: '#dbeafe' },
-  transition: { duration: 0.2 }
-};
+## 三、测试数据
 
-// 3. 玩家移动动画
-const playerAnimation = {
-  initial: { x: 0, y: 0 },
-  animate: { x: targetX, y: targetY },
-  transition: { type: 'spring', stiffness: 300, damping: 20 }
-};
-
-// 4. 回溯动画
-const backtrackAnimation = {
-  initial: { backgroundColor: '#dbeafe' },
-  animate: { backgroundColor: '#fecaca' },
-  transition: { duration: 0.3 }
-};
-```
-
-## 响应式设计
-
-### 断点设置
-
-```javascript
-const breakpoints = {
-  sm: '640px',   // 手机
-  md: '768px',   // 平板
-  lg: '1024px',  // 笔记本
-  xl: '1280px',  // 桌面
-  '2xl': '1536px', // 大屏
-};
-```
-
-### 自适应迷宫
-
-- 小屏：单元格 20px，简化控制面板
-- 中屏：单元格 30px，侧边栏折叠
-- 大屏：单元格 40px，完整布局
-
-## 性能优化
-
-### 1. 虚拟列表
-
-对于大型迷宫（>50x50），使用虚拟列表渲染：
-
-```javascript
-const VirtualizedMazeGrid = ({ maze, cellSize }) => {
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 20 });
-
-  // 只渲染可见区域的单元格
-  const visibleCells = maze.slice(visibleRange.start, visibleRange.end);
-
-  return (
-    <div onScroll={handleScroll}>
-      {visibleCells.map(row => row.map(cell => (
-        <MazeCell key={cell.id} cell={cell} />
-      )))}
-    </div>
-  );
-};
-```
-
-### 2. 动画优化
-
-- 使用 `requestAnimationFrame` 替代 `setInterval`
-- 使用 CSS transform 替代 top/left
-- 批量更新 DOM
-
-### 3. 状态优化
-
-- 使用 `useMemo` 缓存计算结果
-- 使用 `useCallback` 缓存函数引用
-- 拆分 Zustand store 避免不必要的重渲染
-
-## 开发计划
-
-### 阶段一：基础搭建（2天）
-
-- [x] 项目初始化
-- [x] 配置 Tailwind CSS
-- [x] 配置路由
-- [x] 实现布局组件
-
-### 阶段二：核心算法（2天）
-
-- [x] 实现链表栈
-- [x] 实现迷宫求解算法
-- [x] 实现迷宫生成算法
-- [x] 编写单元测试
-
-### 阶段三：功能开发（3天）
-
-- [x] 迷宫编辑器
-- [x] 迷宫生成器
-- [x] 闯关模式
-- [x] 算法演示
-
-### 阶段四：优化完善（1天）
-
-- [x] 动画效果
-- [x] 响应式适配
-- [x] 性能优化
-- [x] 文档编写
-
-## 快速开始
-
-### 环境要求
-
-- Node.js >= 18.0.0
-- npm >= 9.0.0 或 pnpm >= 8.0.0
-
-### 安装
-
-```bash
-# 克隆项目
-git clone <repo-url>
-cd maze-solver
-
-# 安装依赖
-npm install
-# 或
-pnpm install
-
-# 启动开发服务器
-npm run dev
-# 或
-pnpm dev
-```
-
-### 构建
-
-```bash
-# 构建生产版本
-npm run build
-
-# 预览生产版本
-npm run preview
-```
-
-## 测试数据
-
-标准测试迷宫（11x11）：
+迷宫测试数据（11×11），左上角 `(1,1)` 为入口，右下角 `(9,9)` 为出口：
 
 ```
 1 1 1 1 1 1 1 1 1 1 1
@@ -616,16 +177,120 @@ npm run preview
 1 1 1 1 1 1 1 1 1 1 1
 ```
 
-入口：(1, 1)
-出口：(9, 9)
+## 四、选做内容
 
-## 参考资源
+### （1）所有可能的通路
 
-- [React 官方文档](https://react.dev)
-- [Vite 官方文档](https://vitejs.dev)
-- [Tailwind CSS 文档](https://tailwindcss.com)
-- [Framer Motion 文档](https://www.framer.com/motion)
-- [shadcn/ui 组件库](https://ui.shadcn.com)
+实现了 `findAllPaths` 函数，分别使用 DFS 和 BFS 两种算法求解，在算法演示页面可列出从起点到每个终点的所有通路并对比。
+
+### （2）队列求解（BFS）
+
+额外实现了基于队列的广度优先搜索算法（`solveMazeBFS`），可求得最短路径：
+
+```javascript
+// core/mazeSolver.js
+function solveMazeBFS(maze, start, end) {
+  // 基于队列的 BFS 实现
+  // 保证返回最短路径
+}
+```
+
+## 五、功能模块
+
+| 模块 | 说明 |
+|------|------|
+| **算法演示** | 可视化 DFS / BFS 求解过程，支持逐步播放、速度调节、栈/队列状态展示，可列出所有通路 |
+| **闯关模式** | 键盘/触屏控制角色走出迷宫，支持多终点（1~3个），回退不计步，走过的路径以琥珀色标记，自动验证迷宫有解 |
+| **迷宫编辑** | 自由绘制墙壁、设置起点和多个终点，支持导入/导出 JSON |
+| **迷宫生成** | 基于 Prim 算法自动生成迷宫，终点优先放置在边缘，闯关模式自动验证有解后出题 |
+| **深色/浅色主题** | 支持主题切换，偏好保存至 localStorage |
+
+## 六、技术栈
+
+| 技术 | 用途 |
+|------|------|
+| React 18 | 前端框架 |
+| Vite 5 | 构建工具 |
+| Tailwind CSS | 样式框架 |
+| Framer Motion | 动画效果 |
+| Zustand | 状态管理 |
+| React Router 6 | 路由管理 |
+| Lucide React | 图标库 |
+| Canvas API | 首页动态迷宫背景 |
+
+## 七、项目结构
+
+```
+design_project/
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── components/
+│   │   ├── common/          # Button, Card, Modal, Tooltip
+│   │   ├── maze/            # MazeGrid, MazeCell, MazeEditor, AnimationPlayer, PathDisplay
+│   │   └── layout/          # Header, Footer, Sidebar
+│   ├── core/
+│   │   ├── stack.js         # 链表栈实现
+│   │   ├── mazeSolver.js    # DFS / BFS 求解、全路径查找、迷宫验证
+│   │   └── mazeGenerator.js # Prim 迷宫生成（支持多终点、边缘优先）
+│   ├── hooks/
+│   │   ├── useMaze.js
+│   │   ├── useAnimation.js
+│   │   ├── usePathFinding.js
+│   │   └── useTheme.js
+│   ├── pages/
+│   │   ├── Home.jsx         # 首页（动态迷宫背景、粒子效果）
+│   │   ├── Play.jsx         # 闯关模式
+│   │   ├── Solve.jsx        # 算法演示
+│   │   ├── Editor.jsx       # 迷宫编辑
+│   │   └── About.jsx        # 关于
+│   ├── store/
+│   │   └── mazeStore.js     # Zustand 全局状态
+│   ├── utils/
+│   │   ├── constants.js
+│   │   └── helpers.js
+│   ├── styles/
+│   │   └── global.css
+│   ├── App.jsx
+│   └── main.jsx
+├── index.html
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── postcss.config.js
+```
+
+## 八、快速开始
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+```
+
+## 九、部署
+
+本项目部署在 Ubuntu 服务器上，使用 `npm run build` 构建生产版本后通过 Nginx 托管静态资源。
+
+```bash
+npm run build
+# 将 dist/ 目录部署到 Nginx
+```
+
+## 十、运行截图
+
+| 首页 | 算法演示 |
+|------|----------|
+| 动态迷宫背景 + 粒子效果 + 数字滚动 | DFS / BFS 双算法对比，逐步动画 + 栈/队列状态 |
+
+| 闯关模式 | 迷宫编辑 |
+|----------|----------|
+| 键盘控制 + 多终点 + 路径染色 + 回退不计步 | 自由绘制 + 多终点管理 + 导入导出 |
 
 ## 许可证
 
@@ -633,4 +298,4 @@ MIT License
 
 ## 作者
 
-课程设计项目
+安徽理工大学——纪敏宇
